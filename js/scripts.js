@@ -3,13 +3,7 @@
 window.addEventListener('DOMContentLoaded', () => {
 
     // Activate Bootstrap scrollspy on the main nav element
-    const mainNav = document.body.querySelector('#mainNav');
-    if (mainNav) {
-        new bootstrap.ScrollSpy(document.body, {
-            target: '#mainNav',
-            offset: 74,
-        });
-    };
+    $('body').scrollspy({ target: '#mainNav', offset: 74, })
 
     // Collapse responsive navbar when toggler is visible
     const navbarToggler = document.body.querySelector('.navbar-toggler');
@@ -18,6 +12,7 @@ window.addEventListener('DOMContentLoaded', () => {
     );
     responsiveNavItems.map(function (responsiveNavItem) {
         responsiveNavItem.addEventListener('click', () => {
+            console.log("asd")
             if (window.getComputedStyle(navbarToggler).display !== 'none') {
                 navbarToggler.click();
             }
@@ -58,24 +53,24 @@ class CriptumBank{
         this.interest = parseFloat($("#dues").val());
         this.numberOfDues = parseInt(selectWord($("#dues").find(":selected").text(), 0));
         this.currencyType = $("#currency").val();
-        this.currencySymbol = $("#currency").text();
+        this.currencySymbol = $("#currency").find(":selected").text();
         this.emailFormat = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;  
     }
 
     getCurrencyValue(val) {
-        let valorDivisa = 0;
         $.ajax({
             method: "GET",
             url: "https://www.dolarsi.com/api/api.php?type=valoresprincipales",
             dataType: "json",
+            context:this,
             success: function(data) {
-                valorDivisa = data[val].casa.venta;
+                let valorDivisa = data[val].casa.venta;
                 valorDivisa = parseFloat(valorDivisa.replace(/,/g, "."));
-                localStorage.setItem("valorDolar", valorDivisa);
+                let totalMoney = Math.round(this.money*this.interest*100)/100;
+                let dueFee = Math.round(totalMoney/this.numberOfDues*100)/100;
+                let toModal = `Hola ${this.name} el total a pagar por tu préstamo de seria de ${totalMoney}${this.currencySymbol} en ${this.numberOfDues} cuotas de ${dueFee}${this.currencySymbol}. El monto pesificado es de ${totalMoney * valorDivisa}ARS`
+                this.printInModal(toModal)
             }
-        }).done(() => {
-            valorDivisa = localStorage.getItem("valorDolar");
-            alert(`Hola ${this.name} el total a pagar por tu préstamo de seria de ${this.totalMoney}${this.currencySymbol} en ${this.numberOfDues} cuotas de ${this.dueFee}${this.currencySymbol}. El monto pesificado es de ${this.totalMoney * this.valorDivisa}ARS`)
         })
     }
 
@@ -87,7 +82,12 @@ class CriptumBank{
             let dueFee = Math.round(totalMoney/this.numberOfDues*100)/100;
 
             if( this.name == null || this.name.length == 0 || /^\s+$/.test(this.name) ) {
-                alert("Nombre ingresado invalido!")
+                let toModal = "Nombre ingresado invalido!"
+                this.printInModal(toModal)
+            }
+            else if(Number.isNaN(this.money)){
+                let toModal = "Debes ingresar una cantidad de dinero valida!"
+                this.printInModal(toModal)
             }
             else{
                 if(this.currencyType == 1){
@@ -95,7 +95,8 @@ class CriptumBank{
                     console.log(`Email ${this.email} enviado con el resumen`) 
                 }
                 else{
-                    alert(`Hola ${this.name} el total a pagar por tu préstamo de seria de ${totalMoney} en ${this.numberOfDues} cuotas de ${dueFee}`)
+                    let toModal = `Hola ${this.name} el total a pagar por tu préstamo de seria de ${totalMoney}${this.currencySymbol} en ${this.numberOfDues} cuotas de ${dueFee}${this.currencySymbol}`
+                    this.printInModal(toModal)
                     console.log(`Email ${this.email} enviado con el resumen`)
                 }
     
@@ -105,15 +106,19 @@ class CriptumBank{
                 }
                 else{
                     this.clientArr.push(new Client(this.name, this.email));
-                    console.log(this.clientArr)
                     localStorage.clear();
                     localStorage.setItem("listaClientes", JSON.stringify(this.clientArr));
                 }
             }
         }
         else{
-            alert("Email invalido!")
+            let toModal = "Email invalido!"
+            this.printInModal(toModal)
         }
+    }
+
+    printInModal(modalString) {
+        $("#modal-body").html(modalString)
     }
 }
 
@@ -124,7 +129,8 @@ $("#button").on("click", () => {
 });
 $("#formID").on("keypress", function (e) {
     if(e.which == 13){
-        registerAndCalc();
+        const criptumBank = new CriptumBank();
+        criptumBank.validateEmail();
     }
 });
 
@@ -140,8 +146,6 @@ $("#closeAdminPanel").click(() => {
 update.click(()=>{
     clients.html("")
     clientArr.forEach(client => {
-        clients.append(`
-        <li class="list-group-item">Nombre: ${client.name} <br> Email: ${client.email}</li>
-        `);
+        clients.append(`<li class="list-group-item">Nombre: ${client.name} <br> Email: ${client.email}</li>`);
     });
 })
